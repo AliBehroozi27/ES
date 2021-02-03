@@ -3,6 +3,14 @@
 
 #define DEBUG true
 
+#define IDLE 0
+#define ENTERING_1 1
+#define ENTERING_2 2
+#define ENTERING_3 3
+#define EXITING_1 4
+#define EXITING_2 5
+#define EXITING_3 6
+
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
 void setup()
@@ -46,10 +54,11 @@ float sensetemp() ///////function to sense temperature.
 
 
 int connectionId;
+
 void loop()
 {
-
-   if(ESPserial.available())
+  enterExitDetect();
+   if(ESPserial.available());
   {
     /////////////////////Recieving from web browser to toggle led
     if(ESPserial.find("+IPD,"))
@@ -73,7 +82,7 @@ void loop()
     
      if(sensetemp() != 0)
      {
-       String add1="<h4>Temperature=</h4>";
+       String add1="<button onclick=>Turn On</button>";
       String two =  String(sensetemp(), 3);
       add1+= two;
       add1+="&#x2103";   //////////Hex code for degree celcius
@@ -129,3 +138,126 @@ String sendData(String command, const int timeout, boolean debug)
                      }
                 return response;
             }
+
+
+
+int outSensorValue = 0;
+int inSensorValue = 0;
+int state = IDLE;
+void enterExitDetect()
+{
+  outSensorValue = readSensor(A1);
+  inSensorValue = readSensor(A0);
+  switch(state)
+  {
+    case IDLE:
+    {
+      Serial.println("Idle");
+      if(outSensorValue == 1 && inSensorValue == 0)
+      {
+        state = ENTERING_1;
+      }
+      else if(outSensorValue == 0 && inSensorValue == 1)
+      {
+        state = EXITING_1;
+      }
+      break;
+    }
+    case ENTERING_1:
+    {
+      Serial.println("Entering 1");
+      if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        state = IDLE;
+      }
+      else if(outSensorValue == 1 && inSensorValue == 1)
+      {
+        state = ENTERING_2;
+      }
+      break;
+    }
+    case ENTERING_2:
+    {
+      Serial.println("Entering 2");
+      if(outSensorValue == 1 && inSensorValue == 0)
+      {
+        state = ENTERING_1;
+      }
+      else if(outSensorValue == 0 && inSensorValue == 1)
+      {
+        state = ENTERING_3;
+      }
+      break;
+    }
+    case ENTERING_3:
+    {
+      Serial.println("Entering 3");
+      if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        Serial.println("Enered");
+        state = IDLE;
+      }
+      else if(outSensorValue == 1 && inSensorValue == 1)
+      {
+        state = ENTERING_2;
+      }
+      break;
+    }
+    case EXITING_1:
+    {
+      Serial.println("Exiting 1");
+      if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        state = IDLE;
+      }
+      else if(outSensorValue == 1 && inSensorValue == 1)
+      {
+        state = EXITING_2;
+      }
+      break;
+    }
+    case EXITING_2:
+    {
+      Serial.println("Exiting 2");
+      if(outSensorValue == 1 && inSensorValue == 0)
+      {
+        state = EXITING_3;
+      }
+      else if(outSensorValue == 0 && inSensorValue == 1)
+      {
+        state = EXITING_1;
+      }
+      break;
+    }
+    case EXITING_3:
+    {
+      Serial.println("Exiting 3");
+      if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        Serial.println("Exited");
+        state = IDLE;
+      }
+      else if(outSensorValue == 1 && inSensorValue == 1)
+      {
+        state = EXITING_2;
+      }
+      break;
+    }
+    default:
+    {
+      state = IDLE;
+      break;
+    }
+  }
+  
+}
+void ts()
+{
+  Serial.println("o000");
+}
+
+            
+int readSensor(int pin) {
+  int value = analogRead(pin);
+  return value < 300;
+}
