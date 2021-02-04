@@ -1,3 +1,5 @@
+
+
 #include <SoftwareSerial.h>
 
 
@@ -80,15 +82,6 @@ void setup()
 
 }
 
-float sensetemp() ///////function to sense temperature.
- {
-  int val = analogRead(A0);
-  float mv = ( val/1024.0)*5000; 
-  float celcius = mv/10;
-  return(celcius);
- }
-
-
 int connectionId;
 
 void loop()
@@ -100,7 +93,7 @@ void loop()
     /////////////////////Recieving from web browser to toggle led
     if(ESPserial.find("+IPD,"))
     {
-    /* delay(10);
+     delay(10);
      connectionId = ESPserial.read()-48;
      if(ESPserial.find("pin="))
      { 
@@ -111,26 +104,13 @@ void loop()
      }
    
     /////////////////////Sending data to browser
-    else
-    {
-      String webpage = "<h1>Hello World</h1>";
-      espsend(webpage);
-     }*/
     
-     if(sensetemp() != 0)
-     {
-       String add1="<button onclick=>Turn On</button>";
-      String two =  String(sensetemp(), 3);
-      add1+= two;
-      add1+="&#x2103";   //////////Hex code for degree celcius
+      String add1="<h2>Room Air Conditioner Controller</h2>";
+      String count =  "People in the room : " + String(peopleCount, 3) + "<br/>";
+      String ave =  "Average of People which have been in the room in the past 5 Days : " + String(periodsPeople[currentPeriod], 3) + "<br/>";
+      add1+= count;  
+      add1 += ave;
       espsend(add1);
-     }
-    
-     else
-     {
-      String c="sensor is not conneted";
-      espsend(c);                                     
-     } 
      
      String closeCommand = "AT+CIPCLOSE=";  ////////////////close the socket connection////esp command 
      closeCommand+=connectionId; // append connection id
@@ -463,43 +443,6 @@ void setLed()
     }
   }
 }
-
-/*
-void onEnterDetected(int et){
-  if (et < minEntry){
-      minEntry = et;
-  }
-  for (int i = 0; i <= 100; i++) {
-    if (entries[i] != 0){
-      entries[i] = et;
-    }
-  }    
-}
-
-
-void onExitDetected(int et){
-   if (et > maxExit){
-      maxExit = et;
-  }
-  for (int i = 0; i <= 100; i++) {   
-    if (entries[i] != 0){
-      entries[i] = et;
-    }
-  }    
-}
-
-
-void observeTime(){
-  // change this
-  int currentTime = 0;
-
-  if (minEntry < currentTime && maxExit > currentTime){
-    turnOnLed();
-  }else{
-    turnOffLed();
-  }
-}
-*/
 
 void turnOfffLed(){
     digitalWrite(LED_PORT, LOW);
