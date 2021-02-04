@@ -3,6 +3,8 @@
 
 #define DEBUG true
 
+#define LED_PORT 6
+
 #define IDLE 0
 #define ENTERING_1 1
 #define ENTERING_2 2
@@ -11,18 +13,44 @@
 #define EXITING_2 5
 #define EXITING_3 6
 
+/*
+#define PERIOD 900000
+#define PER_COUNT 96
+*/
+
+#define PERIOD 5000
+#define PER_COUNT 2
+
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
 
-int entries[100];
-int exits[100];
+int periodsPeople[PER_COUNT];
+
+int peopleCount;
+int currentPeriod;
+int lastPeriodMod;
+int currPeriodMod;
 
 int minEntry = 99999;
 int maxExit = -99999;
 
+int i;
+
+
+int state = IDLE;
+
 void setup()
 
 {
+  peopleCount = 0;
+  currentPeriod = 0;
+  lastPeriodMod = 0;
+  currPeriodMod = 0;
+  
+  for(i = 0 ; i < PER_COUNT ; i++)
+  {
+    periodsPeople[i] = 0;
+  }
 
   Serial.begin(9600); // communication with the host computer
   
@@ -31,8 +59,7 @@ void setup()
   // Start the software serial for communication with the ESP8266
   
   ESPserial.begin(9600);
-  pinMode(11,OUTPUT);    /////used if connecting a LED to pin 11
-  digitalWrite(11,LOW);
+  pinMode(LED_PORT,OUTPUT);
 
   
   sendData("AT+RST\r\n",2000,DEBUG); // reset module
@@ -64,7 +91,8 @@ int connectionId;
 
 void loop()
 {
-  enterExitDetect();
+   enterExitDetect();
+   updatePeriod();
    if(ESPserial.available());
   {
     /////////////////////Recieving from web browser to toggle led
@@ -108,7 +136,70 @@ void loop()
      sendData(closeCommand,3000,DEBUG);
     }
   }
+  log();
+  
+}
 
+char* getState()
+{
+  switch(state)
+  {
+    case IDLE:
+    {
+      return "idle";
+      break;
+    }
+    case ENTERING_1:
+    {
+      return "entering 1";
+      break;
+    }
+    case ENTERING_2:
+    {
+      return "entering 2";
+      break;
+    }
+    case ENTERING_3:
+    {
+      return "entering 3";
+      break;
+    }
+    case EXITING_1:
+    {
+      return "exiting 1";
+      break;
+    }
+    case EXITING_2:
+    {
+      return "exiting 2";
+      break;
+    }
+    case EXITING_3:
+    {
+      return "exiting 3";
+      break;
+    }
+    default:
+    {
+      return "default";
+      break;
+    }
+  }
+}
+
+void log()
+{
+  Serial.print("period : ");
+  Serial.print(currentPeriod);
+  Serial.print(" - People in room : ");
+  Serial.print(peopleCount);
+  Serial.print(" - People record : ");
+  Serial.print(periodsPeople[currentPeriod]);
+  Serial.print(" - Next period's record : ");
+  Serial.print(periodsPeople[currentPeriod + 1]);
+  Serial.print(" - State : ");
+  Serial.print(getState());
+  Serial.print("\n");
 }
 
   //////////////////////////////sends data from ESP to webpage///////////////////////////
@@ -150,7 +241,6 @@ String sendData(String command, const int timeout, boolean debug)
 
 int outSensorValue = 0;
 int inSensorValue = 0;
-int state = IDLE;
 void enterExitDetect()
 {
   outSensorValue = readSensor(A1);
@@ -159,7 +249,6 @@ void enterExitDetect()
   {
     case IDLE:
     {
-      Serial.println("Idle");
       if(outSensorValue == 1 && inSensorValue == 0)
       {
         state = ENTERING_1;
@@ -172,7 +261,6 @@ void enterExitDetect()
     }
     case ENTERING_1:
     {
-      Serial.println("Entering 1");
       if(outSensorValue == 0 && inSensorValue == 0)
       {
         state = IDLE;
@@ -185,7 +273,6 @@ void enterExitDetect()
     }
     case ENTERING_2:
     {
-      Serial.println("Entering 2");
       if(outSensorValue == 1 && inSensorValue == 0)
       {
         state = ENTERING_1;
@@ -198,10 +285,10 @@ void enterExitDetect()
     }
     case ENTERING_3:
     {
-      Serial.println("Entering 3");
       if(outSensorValue == 0 && inSensorValue == 0)
       {
         Serial.println("Enered");
+        onEnterDetected();
         state = IDLE;
       }
       else if(outSensorValue == 1 && inSensorValue == 1)
@@ -212,7 +299,6 @@ void enterExitDetect()
     }
     case EXITING_1:
     {
-      Serial.println("Exiting 1");
       if(outSensorValue == 0 && inSensorValue == 0)
       {
         state = IDLE;
@@ -225,7 +311,6 @@ void enterExitDetect()
     }
     case EXITING_2:
     {
-      Serial.println("Exiting 2");
       if(outSensorValue == 1 && inSensorValue == 0)
       {
         state = EXITING_3;
@@ -238,10 +323,10 @@ void enterExitDetect()
     }
     case EXITING_3:
     {
-      Serial.println("Exiting 3");
       if(outSensorValue == 0 && inSensorValue == 0)
       {
         Serial.println("Exited");
+        onExitDetected();
         state = IDLE;
       }
       else if(outSensorValue == 1 && inSensorValue == 1)
@@ -258,11 +343,86 @@ void enterExitDetect()
   }
   
 }
+
+void updatePeriod()
+{
+  if(checkPeriodShift())
+  {
+    currentPeriod++;
+    currentPeriod = currentPeriod % PER_COUNT;
+    setLed();
+    setPeopleInCurrentPeriod();
+  }
+}
+
+void setPeopleInCurrentPeriod()
+{
+  if(periodsPeople[currentPeriod] > 0)
+  {
+    periodsPeople[currentPeriod] = (periodsPeople[currentPeriod] + peopleCount) / 2;
+  }
+  else
+  {
+    periodsPeople[currentPeriod] = peopleCount;
+  }
+}
+
+bool checkPeriodShift()
+{
+  lastPeriodMod = currPeriodMod;
+  currPeriodMod = millis() % PERIOD;
+  if(lastPeriodMod > currPeriodMod)
+  {
+    return true;
+  }
+  return false;
+}
             
 int readSensor(int pin) {
   int value = analogRead(pin);
   return value < 300;
 }
+
+
+void onEnterDetected(){
+  peopleCount++;
+}
+
+
+void onExitDetected(){
+   if(peopleCount > 0)
+   {
+     peopleCount--;
+   }
+}
+
+void setLed()
+{
+  if(currentPeriod + 1 < PER_COUNT)
+  {
+    if(periodsPeople[currentPeriod + 1] > 0)
+    {
+      turnOnLed();
+    }
+    else
+    {
+      turnOfffLed();
+    }
+  }
+  else
+  {
+    if(periodsPeople[0] > 0)
+    {
+      turnOnLed();
+    }
+    else
+    {
+      turnOfffLed();
+    }
+  }
+}
+
+/*
 void onEnterDetected(int et){
   if (et < minEntry){
       minEntry = et;
@@ -286,6 +446,7 @@ void onExitDetected(int et){
   }    
 }
 
+
 void observeTime(){
   // change this
   int currentTime = 0;
@@ -296,11 +457,12 @@ void observeTime(){
     turnOffLed();
   }
 }
+*/
 
-void turnOffLed(){
-    digitalWrite(LED_BUILTIN, LOW);
+void turnOfffLed(){
+    digitalWrite(LED_PORT, LOW);
 }
 
 void turnOnLed(){
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_PORT, HIGH);
 }
