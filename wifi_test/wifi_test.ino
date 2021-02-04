@@ -159,3 +159,22 @@ void onExitDetected(int et){
     }
   }    
 }
+
+void observeTime(){
+  // change this
+  int currentTime = 0;
+
+  if (minEntry < currentTime && maxExit > currentTime){
+    turnOnLed();
+  }else{
+    turnOffLed();
+  }
+}
+
+void turnOffLed(){
+    digitalWrite(LED_BUILTIN, LOW);
+}
+
+void turnOnLed(){
+    digitalWrite(LED_BUILTIN, HIGH);
+}
