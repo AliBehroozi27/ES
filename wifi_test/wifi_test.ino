@@ -13,6 +13,8 @@
 #define EXITING_2 5
 #define EXITING_3 6
 
+#define DAYS_COUNT 5
+
 /*
 #define PERIOD 900000
 #define PER_COUNT 96
@@ -24,7 +26,7 @@
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
 
-int periodsPeople[PER_COUNT];
+float periodsPeople[PER_COUNT];
 
 int peopleCount;
 int currentPeriod;
@@ -98,7 +100,7 @@ void loop()
     /////////////////////Recieving from web browser to toggle led
     if(ESPserial.find("+IPD,"))
     {
-     delay(300);
+    /* delay(10);
      connectionId = ESPserial.read()-48;
      if(ESPserial.find("pin="))
      { 
@@ -113,7 +115,7 @@ void loop()
     {
       String webpage = "<h1>Hello World</h1>";
       espsend(webpage);
-     }
+     }*/
     
      if(sensetemp() != 0)
      {
@@ -196,7 +198,14 @@ void log()
   Serial.print(" - People record : ");
   Serial.print(periodsPeople[currentPeriod]);
   Serial.print(" - Next period's record : ");
-  Serial.print(periodsPeople[currentPeriod + 1]);
+  if(currentPeriod + 1 < PER_COUNT)
+  {
+    Serial.print(periodsPeople[currentPeriod + 1]);
+  }
+  else
+  {
+    Serial.print(periodsPeople[0]);
+  }
   Serial.print(" - State : ");
   Serial.print(getState());
   Serial.print("\n");
@@ -269,6 +278,10 @@ void enterExitDetect()
       {
         state = ENTERING_2;
       }
+      else if(outSensorValue == 0 && inSensorValue == 1)
+      {
+        state = IDLE;
+      }
       break;
     }
     case ENTERING_2:
@@ -281,6 +294,10 @@ void enterExitDetect()
       {
         state = ENTERING_3;
       }
+      else if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        state = IDLE;
+      }
       break;
     }
     case ENTERING_3:
@@ -289,11 +306,16 @@ void enterExitDetect()
       {
         Serial.println("Enered");
         onEnterDetected();
+        setLed();
         state = IDLE;
       }
       else if(outSensorValue == 1 && inSensorValue == 1)
       {
         state = ENTERING_2;
+      }
+      else if(outSensorValue == 1 && inSensorValue == 0)
+      {
+        state = IDLE;
       }
       break;
     }
@@ -307,6 +329,10 @@ void enterExitDetect()
       {
         state = EXITING_2;
       }
+      else if(outSensorValue == 1 && inSensorValue == 0)
+      {
+        state = IDLE;
+      }
       break;
     }
     case EXITING_2:
@@ -319,6 +345,10 @@ void enterExitDetect()
       {
         state = EXITING_1;
       }
+      else if(outSensorValue == 0 && inSensorValue == 0)
+      {
+        state = IDLE;
+      }
       break;
     }
     case EXITING_3:
@@ -327,11 +357,16 @@ void enterExitDetect()
       {
         Serial.println("Exited");
         onExitDetected();
+        setLed();
         state = IDLE;
       }
       else if(outSensorValue == 1 && inSensorValue == 1)
       {
         state = EXITING_2;
+      }
+      else if(outSensorValue == 0 && inSensorValue == 1)
+      {
+        state = IDLE;
       }
       break;
     }
@@ -350,8 +385,8 @@ void updatePeriod()
   {
     currentPeriod++;
     currentPeriod = currentPeriod % PER_COUNT;
-    setLed();
     setPeopleInCurrentPeriod();
+    setLed();
   }
 }
 
@@ -359,7 +394,7 @@ void setPeopleInCurrentPeriod()
 {
   if(periodsPeople[currentPeriod] > 0)
   {
-    periodsPeople[currentPeriod] = (periodsPeople[currentPeriod] + peopleCount) / 2;
+    periodsPeople[currentPeriod] = (periodsPeople[currentPeriod] * (DAYS_COUNT - 1) + peopleCount) / DAYS_COUNT;
   }
   else
   {
@@ -398,26 +433,33 @@ void onExitDetected(){
 
 void setLed()
 {
-  if(currentPeriod + 1 < PER_COUNT)
+  if(peopleCount > 0)
   {
-    if(periodsPeople[currentPeriod + 1] > 0)
-    {
-      turnOnLed();
-    }
-    else
-    {
-      turnOfffLed();
-    }
+    turnOnLed();
   }
   else
-  {
-    if(periodsPeople[0] > 0)
+  {  
+    if(currentPeriod + 1 < PER_COUNT)
     {
-      turnOnLed();
+      if(periodsPeople[currentPeriod + 1] > 0.5)
+      {
+        turnOnLed();
+      }
+      else
+      {
+        turnOfffLed();
+      }
     }
     else
     {
-      turnOfffLed();
+      if(periodsPeople[0] > 0.5)
+      {
+        turnOnLed();
+      }
+      else
+      {
+        turnOfffLed();
+      }
     }
   }
 }
