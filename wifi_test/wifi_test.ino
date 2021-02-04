@@ -13,6 +13,13 @@
 
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
+
+int entries[100];
+int exits[100];
+
+int minEntry = 99999;
+int maxExit = -99999;
+
 void setup()
 
 {
@@ -251,13 +258,49 @@ void enterExitDetect()
   }
   
 }
-void ts()
-{
-  Serial.println("o000");
-}
-
             
 int readSensor(int pin) {
   int value = analogRead(pin);
   return value < 300;
+}
+void onEnterDetected(int et){
+  if (et < minEntry){
+      minEntry = et;
+  }
+  for (int i = 0; i <= 100; i++) {
+    if (entries[i] != 0){
+      entries[i] = et;
+    }
+  }    
+}
+
+
+void onExitDetected(int et){
+   if (et > maxExit){
+      maxExit = et;
+  }
+  for (int i = 0; i <= 100; i++) {   
+    if (entries[i] != 0){
+      entries[i] = et;
+    }
+  }    
+}
+
+void observeTime(){
+  // change this
+  int currentTime = 0;
+
+  if (minEntry < currentTime && maxExit > currentTime){
+    turnOnLed();
+  }else{
+    turnOffLed();
+  }
+}
+
+void turnOffLed(){
+    digitalWrite(LED_BUILTIN, LOW);
+}
+
+void turnOnLed(){
+    digitalWrite(LED_BUILTIN, HIGH);
 }
