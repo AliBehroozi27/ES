@@ -5,6 +5,13 @@
 
 SoftwareSerial ESPserial(2, 3); // RX | TX
 
+
+int entries[100];
+int exits[100];
+
+int minEntry = 99999;
+int maxExit = -99999;
+
 void setup()
 
 {
@@ -129,3 +136,26 @@ String sendData(String command, const int timeout, boolean debug)
                      }
                 return response;
             }
+
+void onEnterDetected(int et){
+  if (et < minEntry){
+      minEntry = et;
+  }
+  for (int i = 0; i <= 100; i++) {
+    if (entries[i] != 0){
+      entries[i] = et;
+    }
+  }    
+}
+
+
+void onExitDetected(int et){
+   if (et > maxExit){
+      maxExit = et;
+  }
+  for (int i = 0; i <= 100; i++) {   
+    if (entries[i] != 0){
+      entries[i] = et;
+    }
+  }    
+}
